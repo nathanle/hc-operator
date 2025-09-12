@@ -67,16 +67,6 @@ enum HealthCheckAction {
     NoOp,
 }
 
-enum HealthCheckEvent {
-    Added,
-    Modified,
-    Deleted,
-}
-
-async fn get_current_state() {
-
-}
-
 async fn reconcile(node: Arc<Node>, context: Arc<ContextData>) -> Result<Action, Error> {
     //Changed namespace logic based on customer requirements. Maybe list valid namespaces as vec in CRD definitions? 
     let client: Client = context.client.clone();
@@ -129,16 +119,6 @@ fn determine_action(node: &Node) -> HealthCheckAction {
         HealthCheckAction::Create
     } else {
         HealthCheckAction::NoOp
-    }
-}
-
-fn determine_event(node: &Node) -> HealthCheckEvent {
-    if  1 > 2 {
-        HealthCheckEvent::Deleted
-    } else if  2 > 3{
-        HealthCheckEvent::Modified
-    } else {
-        HealthCheckEvent::Added
     }
 }
 
