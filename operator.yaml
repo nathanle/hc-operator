@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: node-health-check-operator-rs
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: node-health-check-operator-rs
+  template:
+    metadata:
+      labels:
+        app: node-health-check-operator-rs
+    spec:
+      imagePullSecrets:
+      - name: ghcr-login-secret
+      containers:
+      - name: node-health-check-operator-rs
+        image: ghcr.io/nathanles/hc-operator:latest
+        resources:
+          requests:
+            memory: "10Mi"
+            cpu: "10m"
+          limits:
+            memory: "20Mi"
+            cpu: "100m"
+        imagePullPolicy: IfNotPresent 

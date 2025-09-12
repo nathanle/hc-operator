@@ -1,0 +1,159 @@
+use std::sync::Arc;
+use futures::{StreamExt};
+use kube::runtime::{watcher::Config};
+use kube::Resource;
+use kube::ResourceExt;
+use kube::{client::Client, runtime::controller::Action, runtime::Controller, Api};
+use k8s_openapi::api::core::v1::{Node};
+use tokio::time::Duration;
+use crate::crd::HealthCheck;
+use futures::future::FutureExt;
+
+pub mod crd;
+mod actions;
+
+#[tokio::main]
+async fn main() {
+    let kubernetes_client: Client = Client::try_default()
+        .await
+        .expect("Expected a valid KUBECONFIG environment variable.");
+
+    let node_api: Api<Node> = Api::all(kubernetes_client.clone());
+    let context: Arc<ContextData> = Arc::new(ContextData::new(kubernetes_client.clone()));
+    let nodes = node_api.list(&Default::default()).await.unwrap();
+    println!("Active nodes at start: {}", nodes.items.len());
+    let mut result = true;
+    for node in nodes.items {
+        if let Some(annotations) = &node.metadata.annotations {
+            if !annotations.is_empty() {
+                let annotation_key = "test.example.com/seen_by_operator";
+                if let Some(annotation_value) = annotations.get(annotation_key) {
+                    result = false;
+                }
+            }
+        }
+    }
+
+    Controller::new(node_api.clone(), Config::default())
+        .graceful_shutdown_on(tokio::signal::ctrl_c().map(|_| ()))
+        .run(reconcile, on_error, context)
+        .for_each(|reconciliation_result| async move {
+            match reconciliation_result {
+                Ok(node_resource) => {
+                    //println!("Reconciliation successful. Resource: {:?}", node_resource);
+                    println!("Reconciliation successful.");
+                }
+                Err(reconciliation_err) => {
+                    eprintln!("Reconciliation error: {:?}", reconciliation_err)
+                }
+            }
+        })
+        .await;
+}
+
+struct ContextData {
+    client: Client,
+}
+
+impl ContextData {
+    pub fn new(client: Client) -> Self {
+        ContextData { client }
+    }
+}
+
+enum HealthCheckAction {
+    Create,
+    Delete,
+    NoOp,
+}
+
+enum HealthCheckEvent {
+    Added,
+    Modified,
+    Deleted,
+}
+
+async fn get_current_state() {
+
+}
+
+async fn reconcile(node: Arc<Node>, context: Arc<ContextData>) -> Result<Action, Error> {
+    //Changed namespace logic based on customer requirements. Maybe list valid namespaces as vec in CRD definitions? 
+    let client: Client = context.client.clone();
+    let hcapi: Api<HealthCheck> = Api::namespaced(client.clone(), "default");
+    let hc = hcapi.get("hc").await.unwrap();
+    let name = node.metadata.name.clone().expect("Cannot get node name.").to_string();
+
+    match determine_action(&node) {
+        HealthCheckAction::Create => {
+            let timeout = hc.spec.timeout;
+            let port = hc.spec.port;
+            let seen_before = actions::check_if_seen_before(client.clone(), &name).await;
+            println!("{:?}", seen_before);
+            actions::mark_as_seen(client.clone(), &name).await?;
+            actions::check_pod(client.clone(), &name, "default").await;
+            let hcpod_ip = actions::get_hc_pod_ip(client.clone(), &name, "default", port.clone()).await;
+            let mut result = false;
+            if hcpod_ip != "0.0.0.0" {
+                result = actions::check_port(hcpod_ip, port, timeout).await;
+            } else {
+                //Take node out of rotation here
+                let _ = actions::remove_from_nb(client.clone(), &name).await;
+                println!("Node {:?} removed from NodeBalancer", &name);
+                //actions::add_to_nb(client.clone(), &name).await;
+            }
+            if result == true {
+                let _ = actions::add_to_nb(client.clone(), &name).await;
+                println!("reachable");
+            }
+            //healthcheck::deploy(client, &name, &namespace).await?;
+            println!("Node added {:?}", name);
+            Ok(Action::requeue(Duration::from_secs(10)))
+        }
+        HealthCheckAction::Delete => {
+            Ok(Action::await_change())
+        }
+        HealthCheckAction::NoOp => Ok(Action::requeue(Duration::from_secs(10))),
+    }
+}
+
+fn determine_action(node: &Node) -> HealthCheckAction {
+    if node.meta().deletion_timestamp.is_some() {
+        HealthCheckAction::Delete
+    } else if node 
+        .meta()
+        .finalizers
+        .as_ref()
+        .map_or(true, |finalizers| finalizers.is_empty())
+    {
+        HealthCheckAction::Create
+    } else {
+        HealthCheckAction::NoOp
+    }
+}
+
+fn determine_event(node: &Node) -> HealthCheckEvent {
+    if  1 > 2 {
+        HealthCheckEvent::Deleted
+    } else if  2 > 3{
+        HealthCheckEvent::Modified
+    } else {
+        HealthCheckEvent::Added
+    }
+}
+
+fn on_error(node: Arc<Node>, error: &Error, _context: Arc<ContextData>) -> Action {
+    eprintln!("Reconciliation error:\n{:?}.\n{:?}", error, node);
+    Action::requeue(Duration::from_secs(5))
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum Error {
+    #[error("Kubernetes reported error: {source}")]
+    KubeError {
+        #[from]
+        source: kube::Error,
+    },
+    #[error("Invalid HealthCheck CRD: {0}")]
+    UserInputError(String),
+}
