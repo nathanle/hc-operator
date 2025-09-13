@@ -6,7 +6,7 @@ metadata:
 rules:
 - apiGroups:
   - ""
-  - health-check.example.com
+  - healthchecks.example.com
   - example.com
   resources:
   - nodes
