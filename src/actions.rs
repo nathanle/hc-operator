@@ -10,9 +10,7 @@ use std::collections::BTreeMap;
 use serde::{Serialize, Deserialize};
 //use serde_json_path::JsonPath;
 //use kube::api::ObjectMeta;
-use k8s_openapi::apimachinery::pkg::apis::meta::v1::Time;
-use k8s_openapi::apimachinery::pkg::apis::meta::v1::ManagedFieldsEntry;
-use k8s_openapi::apimachinery::pkg::apis::meta::v1::OwnerReference;
+use k8s_openapi::apimachinery::pkg::apis::meta::v1::{ObjectMeta, Time, ManagedFieldsEntry, OwnerReference};
 use k8s_openapi::api::core::v1::{ PodSpec, PodStatus };
 
 pub async fn check_pod(client: Client, target_node_name: &String, namespace: &str) {
@@ -60,30 +58,12 @@ pub async fn check_pod(client: Client, target_node_name: &String, namespace: &st
     }
 }
 
-pub async fn get_hc_pod_ip(client: Client, target_node_name: &String, ns: &str, hcport: i32) -> String {
-
-    //#[derive(Serialize, Deserialize, Debug)]
-    //struct PodSpec {
-    //    node_name: Option<String>,
-    //}
+pub async fn get_hc_pod_ip(client: Client, target_node_name: &String, ns: &str, hcport: i32) -> Vec<String> {
 
     #[derive(Serialize, Deserialize, Debug)]
     struct ContainerPort {
         container_port: u32,
     }
-
-    //#[derive(Serialize, Deserialize, Debug)]
-    //struct PodStatus {
-    //    pod_ip: Option<String>,
-    //}
-
-   // #[derive(Serialize, Deserialize, Debug)]
-   // struct Pods {
-   //     name: Option<String>,
-   //     namespace: Option<String>,
-   //     status: PodStatus,
-   //     spec: Option<PodSpec>
-   // }
 
     #[derive(Serialize, Deserialize, Debug)]
     struct ZeroPods {
@@ -107,27 +87,7 @@ pub async fn get_hc_pod_ip(client: Client, target_node_name: &String, ns: &str, 
         status: PodStatus,
     }
 
-    #[derive(Serialize, Deserialize, Debug)]
-    pub struct ObjectMeta {
-
-        pub annotations: Option<BTreeMap<String, String>>,
-        pub creation_timestamp: Option<Time>,
-        pub deletion_grace_period_seconds: Option<i64>,
-        pub deletion_timestamp: Option<Time>,
-        pub finalizers: Option<Vec<String>>,
-        pub generate_name: Option<String>,
-        pub generation: Option<i64>,
-        pub labels: Option<BTreeMap<String, String>>,
-        pub managed_fields: Option<Vec<ManagedFieldsEntry>>,
-        pub name: Option<String>,
-        pub namespace: Option<String>,
-        pub owner_references: Option<Vec<OwnerReference>>,
-        pub resource_version: Option<String>,
-        pub self_link: Option<String>,
-        pub uid: Option<String>,
-    }
-
-
+    let mut ip_vector: Vec<String> = Vec::new();
     let mut t: i32 = 0;
     //let mut hcpod_ip: String = "0.0.0.0".to_string();
     let pods: Api<Pod> = Api::namespaced(client, ns);
@@ -153,6 +113,8 @@ pub async fn get_hc_pod_ip(client: Client, target_node_name: &String, ns: &str, 
         let filtered_pods_results = serde_json::to_string(&filtered_pods).unwrap();
         let my_struct: ZeroPods = serde_json::from_str(&filtered_pods_results).expect("ZeroPods Failed");
         println!("{:#?}", my_struct);
+            ip_vector.push("0.0.0.0".to_string());
+        
     }
     if filtered_pods.len() > 0 {
         //println!(
@@ -162,12 +124,15 @@ pub async fn get_hc_pod_ip(client: Client, target_node_name: &String, ns: &str, 
         //);
         for f in filtered_pods {
             let filtered_pods_results = serde_json::to_value(f).unwrap();
-            println!("{:#?}", filtered_pods_results);
+            //println!("{:#?}", filtered_pods_results);
             let my_struct: Pods = serde_json::from_value(filtered_pods_results).expect("Pod Failed");
-            println!("{:#?}", my_struct.status.pod_ip);
+            //println!("{:#?}", my_struct.status.pod_ip);
+            ip_vector.push(my_struct.status.pod_ip.expect("IP string conversion failed").to_string());
         }
     }
-    return "0.0.0.0".to_string()
+    println!("{:?}", ip_vector);
+    //return "0.0.0.0".to_string()
+    return ip_vector
 }
 
 pub async fn check_port(ip_address: String, port_number: i32, check_timeout: u64) -> bool {                                                                                                                                        
