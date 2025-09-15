@@ -14,6 +14,16 @@ use k8s_openapi::apimachinery::pkg::apis::meta::v1::{ObjectMeta, Time, ManagedFi
 use k8s_openapi::api::core::v1::{ PodSpec, PodStatus };
 
 pub async fn check_pod(client: Client, target_node_name: &String, namespace: &str) {
+    #[derive(Serialize, Deserialize, Debug)]
+    struct Pods {
+        apiVersion: String,
+        kind: String,
+        metadata: ObjectMeta,
+        spec: PodSpec,
+        status: PodStatus,
+        //Pod: MetaData,
+    }
+
     let mut t: i32 = 0;
     let mut s: String = "".to_string();
     let pods: Api<Pod> = Api::namespaced(client, namespace);
@@ -28,16 +38,24 @@ pub async fn check_pod(client: Client, target_node_name: &String, namespace: &st
                 false
             }
         })
+        .filter(|p| {
+            if !p.metadata.name.as_ref().unwrap().contains("node-health-check-operator") {
+                true
+            } else {
+                false
+            }
+        })
         .collect();
     println!(
         "\nFound {} pods on node '{}':",
         filtered_pods.len(),
         target_node_name
     );
+    //println!("{:#?}", filtered_pods);
     for p in filtered_pods {
         println!("  - {}", p.metadata.name.as_ref().unwrap());
            if let Some(spec) = p.spec {
-               //println!("{:#?}", spec.containers);
+            //println!("{:#?}", spec.containers);
             for container in spec.containers {
                 if let Some(ports) = container.ports {
                     for port in ports {
