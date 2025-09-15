@@ -1,7 +1,7 @@
 use crate::crd::HealthCheck;
 use kube::api::{ListParams, Patch, PatchParams};
 use kube::{Api, Client, Error};
-use serde_json::{json, Value};
+use serde_json::{from_value, json, Value};
 use std::time::Duration;
 use k8s_openapi::api::core::v1::{Node, Pod};
 use port_check::*;                                                                                                                                                                                 
@@ -161,21 +161,21 @@ pub async fn check_if_seen_before(client: Client, name: &str) -> bool {
 
 }
 
-pub async fn mark_as_seen(client: Client, name: &str) -> Result<Node, Error> {
-    let api: Api<Node> = Api::all(client);
-    let mut node = api.get(&name).await.unwrap();
-    let mut annotations = node.metadata.annotations.unwrap_or_default();
-    annotations.insert("test.example.com/seen_by_operator".to_string(), "true".to_string());
-    node.metadata.annotations = Some(annotations);
-    let patch_payload: Value = json!({
-        "metadata": {
-            "annotations": node.metadata.annotations
-        }
-    });
-    let patch: Patch<&Value> = Patch::Merge(&patch_payload);
-    println!("Annotations updated for node: {}", name);
-    api.patch(name, &PatchParams::default(), &patch).await
-}
+//pub async fn mark_as_seen(client: Client, name: &str) -> Result<Node, Error> {
+    //let api: Api<Node> = Api::all(client);
+    //let mut node = api.get(&name).await.unwrap();
+    //let mut annotations = node.metadata.annotations.unwrap_or_default();
+    //annotations.insert("test.example.com/seen_by_operator".to_string(), "true".to_string());
+    //node.metadata.annotations = Some(annotations);
+    //let patch_payload: Value = json!({
+    //    "metadata": {
+    //        "annotations": node.metadata.annotations
+    //    }
+    //});
+    //let patch: Patch<&Value> = Patch::Merge(&patch_payload);
+    //println!("Annotations updated for node: {}", name);
+    //api.patch(name, &PatchParams::default(), &patch).await
+//}
 
 pub async fn remove_from_nb(client: Client, name: &str) -> Result<Node, Error> {
     let api: Api<Node> = Api::all(client);
@@ -189,24 +189,29 @@ pub async fn remove_from_nb(client: Client, name: &str) -> Result<Node, Error> {
         }
     });
     let patch: Patch<&Value> = Patch::Merge(&patch_payload);
-    println!("Annotations updated for node: {}", name);
+    println!("Annotations updated for node: {} - Removed from NB", name);
     api.patch(name, &PatchParams::default(), &patch).await
+    
 }
 
 pub async fn add_to_nb(client: Client, name: &str) -> Result<Node, Error> {
     let api: Api<Node> = Api::all(client);
     let mut node = api.get(&name).await.unwrap();
-    let mut annotations = node.metadata.annotations.unwrap_or_default();
-    let path = "node.k8s.linode.com/exclude-from-nb";
-    annotations.remove(path);
-    println!("{:#?}", annotations);
-    node.metadata.annotations = Some(annotations);
-    let patch_payload: Value = json!({
-        "metadata": {
-            "annotations": node.metadata.annotations
+    //let mut annotations = node.metadata.annotations.unwrap_or_default();
+    let annotation_key = "node.k8s.linode.com/exclude-from-nb";
+
+    let patch = json!([
+        {
+            "op": "remove",
+            "path": format!("/metadata/annotations/{}", annotation_key.replace("~", "~0").replace("/", "~1"))
         }
-    });
-    let patch: Patch<&Value> = Patch::Merge(&patch_payload);
-    println!("Annotations updated for node: {}", name);
-    api.patch(name, &PatchParams::default(), &patch).await
+    ]);
+    println!("Annotations updated for node: {} - Added to NB", name);
+
+    api.patch(
+        name,
+        &PatchParams::default(),
+        &Patch::Json::<()>(from_value(patch).unwrap()),
+    )
+    .await
 }

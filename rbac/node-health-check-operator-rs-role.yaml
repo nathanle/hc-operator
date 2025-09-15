@@ -8,6 +8,8 @@ rules:
   - ""
   - healthchecks.example.com
   - example.com
+  - test.com
+  - node.k8s.linode.com
   resources:
   - nodes
   - pods 

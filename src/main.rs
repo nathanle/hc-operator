@@ -80,7 +80,7 @@ async fn reconcile(node: Arc<Node>, context: Arc<ContextData>) -> Result<Action,
             let port = hc.spec.port;
             let seen_before = actions::check_if_seen_before(client.clone(), &name).await;
             println!("{:?}", seen_before);
-            actions::mark_as_seen(client.clone(), &name).await?;
+            //actions::mark_as_seen(client.clone(), &name).await?;
             actions::check_pod(client.clone(), &name, "default").await;
             let hcpod_ip = actions::get_hc_pod_ip(client.clone(), &name, "default", port.clone()).await;
             println!("hcppod_ip: {:?}", hcpod_ip);
@@ -93,6 +93,9 @@ async fn reconcile(node: Arc<Node>, context: Arc<ContextData>) -> Result<Action,
                     if result == true {
                         let _ = actions::add_to_nb(client.clone(), &name).await;
                         println!("reachable");
+                    } else {
+                        let _ = actions::remove_from_nb(client.clone(), &name).await;
+                        println!("Node {:?} removed from NodeBalancer", &name);
                     }
                 }
             } else {
