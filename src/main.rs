@@ -73,13 +73,19 @@ async fn reconcile(node: Arc<Node>, context: Arc<ContextData>) -> Result<Action,
     let client: Client = context.client.clone();
     let hcapi: Api<HealthCheck> = Api::namespaced(client.clone(), "default");
     let name = node.metadata.name.clone().expect("Cannot get node name.").to_string();
+    let lp = ListParams::default();
+    let healthchecks = hcapi.list(&lp).await.unwrap();
+    for hclist in healthchecks.items.clone() {
+        let hc = hcapi.get(&hclist.metadata.name.expect("HC lookup issue")).await.unwrap();
+        println!("{}-{}-{}", hc.spec.serv_namespace, hc.spec.timeout, hc.spec.port);
+    }
 
     match determine_action(&node) {
         HealthCheckAction::Create => {
             //let hc = hcapi.get("hc").await.unwrap();
-            let lp = ListParams::default();
-            for hclist in hcapi.list(&lp).await.unwrap() {
-                let hc = hcapi.get(&hclist.metadata.name.expect("HC lookup issue").to_string()).await.unwrap();
+            println!("Vector {:?}", &healthchecks.items);
+            for hclist in &healthchecks.items {
+                let hc = hcapi.get(&hclist.metadata.name.as_ref().expect("HC lookup issue")).await.unwrap();
                 //println!("{:#?}", hc);
                 let srv_namespace = hc.spec.serv_namespace;
                 let timeout = hc.spec.timeout;
@@ -111,7 +117,7 @@ async fn reconcile(node: Arc<Node>, context: Arc<ContextData>) -> Result<Action,
                     //actions::add_to_nb(client.clone(), &name).await;
                 }
                 //healthcheck::deploy(client, &name, &namespace).await?;
-                println!("Node added {:?}", name);
+                //println!("Node added {:?}", name);
                 //return Ok(Action::requeue(Duration::from_secs(10)))
             }
             return Ok(Action::requeue(Duration::from_secs(10)))

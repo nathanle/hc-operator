@@ -47,9 +47,10 @@ pub async fn check_pod(client: Client, target_node_name: &String, namespace: &st
         })
         .collect();
     println!(
-        "\nFound {} pods on node '{}':",
+        "\nFound {} pods on node {} in namespace {}",
         filtered_pods.len(),
-        target_node_name
+        target_node_name,
+        namespace
     );
     //println!("{:#?}", filtered_pods);
     for p in filtered_pods {
@@ -210,6 +211,28 @@ pub async fn remove_from_nb(client: Client, name: &str) -> Result<Node, Error> {
     println!("Annotations updated for node: {} - Removed from NB", name);
     api.patch(name, &PatchParams::default(), &patch).await
     
+}
+
+pub async fn remove_from_nb_old(client: Client, name: &str) -> Result<Node, Error> {
+    let api: Api<Node> = Api::all(client);
+    let mut node = api.get(&name).await.unwrap();
+    //let mut annotations = node.metadata.annotations.unwrap_or_default();
+    let annotation_key = "node.k8s.linode.com/exclude-from-nb";
+
+    let patch = json!([
+        {
+            "op": "remove",
+            "path": format!("/metadata/annotations/{}", annotation_key.replace("~", "~0").replace("/", "~1"))
+        }
+    ]);
+    println!("Annotations updated for node: {} - Added to NB", name);
+
+    api.patch(
+        name,
+        &PatchParams::default(),
+        &Patch::Json::<()>(from_value(patch).unwrap()),
+    )
+    .await
 }
 
 pub async fn add_to_nb(client: Client, name: &str) -> Result<Node, Error> {
