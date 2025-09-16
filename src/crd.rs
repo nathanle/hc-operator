@@ -14,4 +14,5 @@ use serde::{Deserialize, Serialize};
 pub struct HealthCheckSpec {
     pub timeout: u64,
     pub port: i32,
+    pub serv_namespace: String,
 }

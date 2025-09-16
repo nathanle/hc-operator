@@ -85,7 +85,7 @@ pub async fn get_hc_pod_ip(client: Client, target_node_name: &String, ns: &str, 
 
     #[derive(Serialize, Deserialize, Debug)]
     struct ZeroPods {
-        Pod: ObjectMeta,
+        //Pod: ObjectMeta,
     }
 
     #[derive(Serialize, Deserialize, Debug)]

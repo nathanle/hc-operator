@@ -8,6 +8,7 @@ use k8s_openapi::api::core::v1::{Node};
 use tokio::time::Duration;
 use crate::crd::HealthCheck;
 use futures::future::FutureExt;
+use kube::api::ListParams;
 
 pub mod crd;
 mod actions;
@@ -75,38 +76,45 @@ async fn reconcile(node: Arc<Node>, context: Arc<ContextData>) -> Result<Action,
 
     match determine_action(&node) {
         HealthCheckAction::Create => {
-            let hc = hcapi.get("hc").await.unwrap();
-            let timeout = hc.spec.timeout;
-            let port = hc.spec.port;
-            let seen_before = actions::check_if_seen_before(client.clone(), &name).await;
-            println!("{:?}", seen_before);
-            //actions::mark_as_seen(client.clone(), &name).await?;
-            actions::check_pod(client.clone(), &name, "default").await;
-            let hcpod_ip = actions::get_hc_pod_ip(client.clone(), &name, "default", port.clone()).await;
-            println!("hcppod_ip: {:?}", hcpod_ip);
-            let mut result = false;
-            let null_ip = "0.0.0.0".to_string();
-            if !hcpod_ip.contains(&null_ip) {
-                for ip in hcpod_ip {
-                    result = actions::check_port(ip, port, timeout).await;
-                    println!("Port check passed status: {:?}", result);
-                    if result == true {
-                        let _ = actions::add_to_nb(client.clone(), &name).await;
-                        println!("reachable");
-                    } else {
-                        let _ = actions::remove_from_nb(client.clone(), &name).await;
-                        println!("Node {:?} removed from NodeBalancer", &name);
+            //let hc = hcapi.get("hc").await.unwrap();
+            let lp = ListParams::default();
+            for hclist in hcapi.list(&lp).await.unwrap() {
+                let hc = hcapi.get(&hclist.metadata.name.expect("HC lookup issue").to_string()).await.unwrap();
+                //println!("{:#?}", hc);
+                let srv_namespace = hc.spec.serv_namespace;
+                let timeout = hc.spec.timeout;
+                let port = hc.spec.port;
+                let seen_before = actions::check_if_seen_before(client.clone(), &name).await;
+                println!("{:?}", seen_before);
+                //actions::mark_as_seen(client.clone(), &name).await?;
+                actions::check_pod(client.clone(), &name, "default").await;
+                let hcpod_ip = actions::get_hc_pod_ip(client.clone(), &name, "default", port.clone()).await;
+                println!("hcppod_ip: {:?}", hcpod_ip);
+                let mut result = false;
+                let null_ip = "0.0.0.0".to_string();
+                if !hcpod_ip.contains(&null_ip) {
+                    for ip in hcpod_ip {
+                        result = actions::check_port(ip, port, timeout).await;
+                        println!("Port check passed status: {:?}", result);
+                        if result == true {
+                            let _ = actions::add_to_nb(client.clone(), &name).await;
+                            println!("reachable");
+                        } else {
+                            let _ = actions::remove_from_nb(client.clone(), &name).await;
+                            println!("Node {:?} removed from NodeBalancer", &name);
+                        }
                     }
+                } else {
+                    //Take node out of rotation here
+                    let _ = actions::remove_from_nb(client.clone(), &name).await;
+                    println!("Node {:?} removed from NodeBalancer", &name);
+                    //actions::add_to_nb(client.clone(), &name).await;
                 }
-            } else {
-                //Take node out of rotation here
-                let _ = actions::remove_from_nb(client.clone(), &name).await;
-                println!("Node {:?} removed from NodeBalancer", &name);
-                //actions::add_to_nb(client.clone(), &name).await;
+                //healthcheck::deploy(client, &name, &namespace).await?;
+                println!("Node added {:?}", name);
+                //return Ok(Action::requeue(Duration::from_secs(10)))
             }
-            //healthcheck::deploy(client, &name, &namespace).await?;
-            println!("Node added {:?}", name);
-            Ok(Action::requeue(Duration::from_secs(10)))
+            return Ok(Action::requeue(Duration::from_secs(10)))
         }
         HealthCheckAction::Delete => {
             Ok(Action::await_change())
