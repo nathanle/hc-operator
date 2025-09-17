@@ -85,7 +85,7 @@ async fn reconcile(node: Arc<Node>, context: Arc<ContextData>) -> Result<Action,
             //let hc = hcapi.get("hc").await.unwrap();
             println!("Vector {:?}", &healthchecks.items);
             for hclist in &healthchecks.items {
-                let hc = hcapi.get(&hclist.metadata.name.as_ref().expect("HC lookup issue")).await.unwrap();
+                let hc = hcapi.get(&hclist.metadata.name.clone().expect("HC lookup issue")).await.unwrap();
                 //println!("{:#?}", hc);
                 let srv_namespace = hc.spec.serv_namespace;
                 let timeout = hc.spec.timeout;
@@ -93,8 +93,8 @@ async fn reconcile(node: Arc<Node>, context: Arc<ContextData>) -> Result<Action,
                 let seen_before = actions::check_if_seen_before(client.clone(), &name).await;
                 println!("{:?}", seen_before);
                 //actions::mark_as_seen(client.clone(), &name).await?;
-                actions::check_pod(client.clone(), &name, "default").await;
-                let hcpod_ip = actions::get_hc_pod_ip(client.clone(), &name, "default", port.clone()).await;
+                actions::check_pod(client.clone(), &name, &srv_namespace).await;
+                let hcpod_ip = actions::get_hc_pod_ip(client.clone(), &name, &srv_namespace, port.clone()).await;
                 println!("hcppod_ip: {:?}", hcpod_ip);
                 let mut result = false;
                 let null_ip = "0.0.0.0".to_string();
