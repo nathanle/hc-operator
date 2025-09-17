@@ -1,0 +1,19 @@
+apiVersion: example.com/v1
+kind: HealthCheck
+metadata:
+  name: hc
+  namespace: default
+spec:
+  serv_namespace: default
+  timeout: 10
+  port: 70 
+---
+apiVersion: example.com/v1
+kind: HealthCheck
+metadata:
+  name: hc2
+  namespace: default
+spec:
+  serv_namespace: test 
+  timeout: 10
+  port: 80 
