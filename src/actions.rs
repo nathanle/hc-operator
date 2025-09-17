@@ -213,28 +213,6 @@ pub async fn remove_from_nb(client: Client, name: &str) -> Result<Node, Error> {
     
 }
 
-pub async fn remove_from_nb_old(client: Client, name: &str) -> Result<Node, Error> {
-    let api: Api<Node> = Api::all(client);
-    let mut node = api.get(&name).await.unwrap();
-    //let mut annotations = node.metadata.annotations.unwrap_or_default();
-    let annotation_key = "node.k8s.linode.com/exclude-from-nb";
-
-    let patch = json!([
-        {
-            "op": "remove",
-            "path": format!("/metadata/annotations/{}", annotation_key.replace("~", "~0").replace("/", "~1"))
-        }
-    ]);
-    println!("Annotations updated for node: {} - Added to NB", name);
-
-    api.patch(
-        name,
-        &PatchParams::default(),
-        &Patch::Json::<()>(from_value(patch).unwrap()),
-    )
-    .await
-}
-
 pub async fn add_to_nb(client: Client, name: &str) -> Result<Node, Error> {
     let api: Api<Node> = Api::all(client);
     let mut node = api.get(&name).await.unwrap();
