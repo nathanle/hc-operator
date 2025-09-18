@@ -107,7 +107,7 @@ async fn reconcile(node: Arc<Node>, context: Arc<ContextData>) -> Result<Action,
                             println!("reachable");
                         } else {
                             let _ = actions::remove_from_nb(client.clone(), &name).await;
-                            println!("Node {:?} removed from NodeBalancer - {:?} unreachable", &name, &ip);
+                            println!("Node {:?} removed from NodeBalancer - unreachable", &name);
                         }
                     }
                 }
