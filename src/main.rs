@@ -41,8 +41,8 @@ async fn main() {
         .for_each(|reconciliation_result| async move {
             match reconciliation_result {
                 Ok(node_resource) => {
-                    //println!("Reconciliation successful. Resource: {:?}", node_resource);
-                    println!("Reconciliation successful.");
+                    println!("Reconciliation successful. Resource: {:?}", node_resource);
+                    //println!("Reconciliation successful.");
                 }
                 Err(reconciliation_err) => {
                     eprintln!("Reconciliation error: {:?}", reconciliation_err)
