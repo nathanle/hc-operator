@@ -51,7 +51,7 @@ pub async fn check_pod(client: Client, target_node_name: &String, namespace: &st
             }
         })
         .filter(|p| {
-            if !p.metadata.name.as_ref().unwrap().contains("node-health-check-operator") {
+            if !p.metadata.name.as_deref().unwrap().contains("node-health-check-operator") {
                 true
             } else {
                 false

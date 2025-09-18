@@ -83,7 +83,7 @@ async fn reconcile(node: Arc<Node>, context: Arc<ContextData>) -> Result<Action,
     match determine_action(&node) {
         HealthCheckAction::Create => {
             //let hc = hcapi.get("hc").await.unwrap();
-            println!("Vector {:?}", &healthchecks.items);
+            //println!("Vector {:?}", &healthchecks.items);
             for hclist in &healthchecks.items {
                 let hc = hcapi.get(&hclist.metadata.name.clone().expect("HC lookup issue")).await.unwrap();
                 //println!("{:#?}", hc);
@@ -107,18 +107,10 @@ async fn reconcile(node: Arc<Node>, context: Arc<ContextData>) -> Result<Action,
                             println!("reachable");
                         } else {
                             let _ = actions::remove_from_nb(client.clone(), &name).await;
-                            println!("Node {:?} removed from NodeBalancer", &name);
+                            println!("Node {:?} removed from NodeBalancer - {:?} unreachable", &name, &ip);
                         }
                     }
-                } else {
-                    //Take node out of rotation here
-                    let _ = actions::remove_from_nb(client.clone(), &name).await;
-                    println!("Node {:?} removed from NodeBalancer", &name);
-                    //actions::add_to_nb(client.clone(), &name).await;
                 }
-                //healthcheck::deploy(client, &name, &namespace).await?;
-                //println!("Node added {:?}", name);
-                //return Ok(Action::requeue(Duration::from_secs(10)))
             }
             return Ok(Action::requeue(Duration::from_secs(10)))
         }
