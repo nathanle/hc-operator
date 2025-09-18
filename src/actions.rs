@@ -227,7 +227,6 @@ pub async fn remove_from_nb(client: Client, name: &str) -> Result<Node, Error> {
 pub async fn add_to_nb(client: Client, name: &str) -> Result<Node, Error> {
     let api: Api<Node> = Api::all(client);
     let mut node = api.get(&name).await.unwrap();
-    //let mut annotations = node.metadata.annotations.unwrap_or_default();
     let label_key = "node.kubernetes.io/exclude-from-external-load-balancers";
 
     let patch = json!([
