@@ -133,6 +133,13 @@ pub async fn get_hc_pod_ip(client: Client, target_node_name: &String, ns: &str, 
                 false
             }
         })
+        .filter(|p| {
+            if !p.metadata.name.as_deref().unwrap().contains("node-health-check-operator") {
+                true
+            } else {
+                false
+            }
+        })
         .collect();
     if filtered_pods.len() == 0 {
         //println!(
