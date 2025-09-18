@@ -13,6 +13,18 @@ use serde::{Serialize, Deserialize};
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::{ObjectMeta, Time, ManagedFieldsEntry, OwnerReference};
 use k8s_openapi::api::core::v1::{ PodSpec, PodStatus };
 
+
+#[derive(Serialize, Deserialize, Debug)]
+struct NodeMetadataPatch {
+    labels: BTreeMap<String, String>,
+}
+
+// Define a struct to represent the overall Pod patch
+#[derive(Serialize, Deserialize, Debug)]
+struct NodePatch {
+    metadata: NodeMetadataPatch,
+}
+
 pub async fn check_pod(client: Client, target_node_name: &String, namespace: &str) {
     #[derive(Serialize, Deserialize, Debug)]
     struct Pods {
@@ -199,33 +211,32 @@ pub async fn check_if_seen_before(client: Client, name: &str) -> bool {
 pub async fn remove_from_nb(client: Client, name: &str) -> Result<Node, Error> {
     let api: Api<Node> = Api::all(client);
     let mut node = api.get(&name).await.unwrap();
-    let mut annotations = node.metadata.annotations.unwrap_or_default();
-    annotations.insert("node.k8s.linode.com/exclude-from-nb".to_string(), "true".to_string());
-    node.metadata.annotations = Some(annotations);
-    let patch_payload: Value = json!({
-        "metadata": {
-            "annotations": node.metadata.annotations
-        }
-    });
-    let patch: Patch<&Value> = Patch::Merge(&patch_payload);
-    println!("Annotations updated for node: {} - Removed from NB", name);
-    api.patch(name, &PatchParams::default(), &patch).await
-    
+    let mut new_labels = BTreeMap::new();
+    new_labels.insert("node.kubernetes.io/exclude-from-external-load-balancers".to_string(), "true".to_string());
+    let patch = NodePatch {
+        metadata: NodeMetadataPatch {
+            labels: new_labels,
+        },
+    };
+    let params = PatchParams::default();
+    println!("Labels updated for node: {} - Removed from NB", name);
+    api.patch(name, &params, &Patch::Merge(&patch)).await
+
 }
 
 pub async fn add_to_nb(client: Client, name: &str) -> Result<Node, Error> {
     let api: Api<Node> = Api::all(client);
     let mut node = api.get(&name).await.unwrap();
     //let mut annotations = node.metadata.annotations.unwrap_or_default();
-    let annotation_key = "node.k8s.linode.com/exclude-from-nb";
+    let label_key = "node.kubernetes.io/exclude-from-external-load-balancers";
 
     let patch = json!([
         {
             "op": "remove",
-            "path": format!("/metadata/annotations/{}", annotation_key.replace("~", "~0").replace("/", "~1"))
+            "path": format!("/metadata/labels/{}", label_key.replace("~", "~0").replace("/", "~1"))
         }
     ]);
-    println!("Annotations updated for node: {} - Added to NB", name);
+    println!("Labels updated for node: {} - Added to NB", name);
 
     api.patch(
         name,
