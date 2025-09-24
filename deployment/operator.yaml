@@ -17,7 +17,7 @@ spec:
       - name: ghcr-login-secret
       containers:
       - name: node-health-check-operator-rs
-        image: nathanles/hc-operator:latest
+        image: nathanles/hc-operator:testing
         resources:
           requests:
             memory: "10Mi"
