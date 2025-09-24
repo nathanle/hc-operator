@@ -12,6 +12,8 @@ use kube::api::ListParams;
 
 pub mod crd;
 mod actions;
+mod api;
+mod database;
 
 #[tokio::main]
 async fn main() {
