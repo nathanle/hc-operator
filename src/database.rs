@@ -139,54 +139,24 @@ pub async fn create_maindb_client() -> Client {
     client 
 
 }
-pub async fn localdb_init() -> Result<(), Box<dyn std::error::Error>> {
+
+pub async fn update_state(nbid: i32, nbcfgid: i32, nodeid: i32, port: i32, lastmode: String, current: String) -> Result<(), Box<dyn std::error::Error>> {
     let mut connection = create_localdb_client().await;
-    let main_table = connection.batch_execute("
-        CREATE TABLE IF NOT EXISTS nodebalancer (
-            nb_id INTEGER NOT NULL,
-            ipv4 VARCHAR NOT NULL,
-            region VARCHAR NOT NULL,
-            lke_id INTEGER,
-            PRIMARY KEY (nb_id)
-            );
-    ");
+    let update = connection.execute(
+            "INSERT INTO state (nodebalancer_id, nodebalancer_config_id, node_id, port, lastmode, current) VALUES ($1, $2, $3, $4, $5, $6)",
+            &[&nbid, &nbcfgid, &nodeid, &port, &lastmode.to_string(), &current.to_string()],
+    ).await;
 
-    match main_table.await {
-        Ok(success) => println!("Nodebalancer table availabe"),
-        Err(e) => println!("{:?}", e),
+    match update {
+        Ok(success) => (),
+        Err(e) => {
+            if e.to_string().contains("duplicate key value violates unique constraint") {
+                ();
+            } else {
+                println!("{:?}", e);
+            }
         }
-
-    let nb_cfg_conn  = connection.batch_execute("
-        CREATE TABLE IF NOT EXISTS nodebalancer_config  (
-            id INTEGER NOT NULL,
-            algorithm VARCHAR NOT NULL,
-            port INTEGER NOT NULL,
-            up INTEGER NOT NULL,
-            down INTEGER NOT NULL,
-            nodebalancer_id INTEGER NOT NULL REFERENCES nodebalancer,
-            PRIMARY KEY (id, nodebalancer_id)
-            );
-    ");
-    match nb_cfg_conn.await {
-        Ok(success) => println!("Nodebalancer config table availabe"),
-        Err(e) => println!("{:?}", e),
-        }
-
-
-    let node_table  = connection.batch_execute("
-        CREATE TABLE IF NOT EXISTS node  (
-            id INTEGER NOT NULL,
-            address VARCHAR NOT NULL,
-            status VARCHAR NOT NULL,
-            config_id INTEGER NOT NULL,
-            nodebalancer_id INTEGER NOT NULL REFERENCES nodebalancer,
-            PRIMARY KEY (id, nodebalancer_id)
-            );
-    ");
-    match node_table.await {
-        Ok(success) => println!("Node table available"),
-        Err(e) => println!("{:?}", e),
-        }
+    }
 
     Ok(())
 
