@@ -246,17 +246,23 @@ pub async fn get_nbcfg_ids() -> Result<Vec<Row>, Error> {
 
 }
 
-pub async fn get_by_node_ip_nbcfg(ip: String) -> Result<Vec<Row>, Error> {
+pub async fn get_by_node_ip_nbcfg(ip: &String, port: &i32) -> Result<Vec<Row>, Error> {
+    //let mut new_ip: &String = ip;
+    let searchpattern = format!("%{}%", &ip);
+    println!("IP SENT TO DB {}", &searchpattern);
     let mut node_connection = create_localdb_client().await;
     let nb_table = node_connection.query(
-        "select * from node where address like '%$1%' INNER JOIN nodebalancer_config ON node.config_id = nodebalancer_config.id;", &[&ip],
+        "select * from node INNER JOIN nodebalancer_config ON node.config_id = nodebalancer_config.id where address LIKE $1 AND port = $2;", &[&searchpattern, &port],
     ).await;
+
+    //println!("{:#?}", nb_table);
 
     Ok(nb_table?)
 
 }
 
 pub async fn get_by_node_ip_nb(ip: String) -> Result<Vec<Row>, Error> {
+    //FIX the same as function above
     let mut node_connection = create_localdb_client().await;
     let nb_table = node_connection.query(
         "select * from node INNER JOIN nodebalancer ON node.nodebalancer_id = nodebalancer.nb_id where address like '%$1%';", &[&ip],

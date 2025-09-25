@@ -9,10 +9,13 @@ use tokio::time::Duration;
 use crate::crd::HealthCheck;
 use futures::future::FutureExt;
 use kube::api::ListParams;
+use crate::database::{
+    get_by_node_ip_nbcfg,
+};
 
 pub mod crd;
 mod actions;
-mod api;
+mod hcapi;
 mod database;
 
 #[tokio::main]
@@ -102,13 +105,14 @@ async fn reconcile(node: Arc<Node>, context: Arc<ContextData>) -> Result<Action,
                 let null_ip = "0.0.0.0".to_string();
                 if !hcpod_ip.contains(&null_ip) {
                     for ip in hcpod_ip {
-                        result = actions::check_port(ip, port, timeout).await;
+                        result = actions::check_port(ip.clone(), port, timeout).await;
                         println!("Port check passed status: {:?}", result);
+
                         if result == true {
-                            let _ = actions::add_to_nb(client.clone(), &name).await;
+                            let _ = actions::add_to_nb(client.clone(), &name, port.clone()).await;
                             println!("reachable");
                         } else {
-                            let _ = actions::remove_from_nb(client.clone(), &name).await;
+                            let _ = actions::remove_from_nb(client.clone(), &name, port.clone()).await;
                             println!("Node {:?} removed from NodeBalancer - unreachable", &name);
                         }
                     }

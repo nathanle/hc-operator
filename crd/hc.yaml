@@ -6,7 +6,7 @@ metadata:
 spec:
   serv_namespace: default
   timeout: 10
-  port: 70 
+  port: 80 
 ---
 apiVersion: example.com/v1
 kind: HealthCheck

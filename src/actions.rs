@@ -1,4 +1,5 @@
 use crate::crd::HealthCheck;
+use k8s_openapi::api::core::v1::NodeAddress;
 use kube::api::{ListParams, Patch, PatchParams};
 use kube::{Api, Client, Error};
 use serde_json::{from_value, json, Value};
@@ -12,7 +13,13 @@ use serde::{Serialize, Deserialize};
 //use kube::api::ObjectMeta;
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::{ObjectMeta, Time, ManagedFieldsEntry, OwnerReference};
 use k8s_openapi::api::core::v1::{ PodSpec, PodStatus };
+use crate::hcapi;
+use crate::database::{
+    get_by_node_ip_nbcfg,
+};
 
+
+//mod database;
 
 #[derive(Serialize, Deserialize, Debug)]
 struct NodeMetadataPatch {
@@ -23,6 +30,24 @@ struct NodeMetadataPatch {
 #[derive(Serialize, Deserialize, Debug)]
 struct NodePatch {
     metadata: NodeMetadataPatch,
+}
+
+fn get_private_address(node: &Node) -> Option<String> {
+    //if let Some(addresses) = node.status.and_then(|s| s.addresses) {
+    //    for address in addresses {
+    //        if address.type_ == "InternalIP" {
+    //            println!("Node Address: {}", address.address);
+    //        }
+    //    }
+    //}
+    if let Some(addresses) = node.status.as_ref().and_then(|s| s.addresses.as_ref()) {
+        for address in addresses {
+            if address.type_ == "InternalIP" {
+                return Some(address.address.clone());
+            }
+        }
+    }
+    None
 }
 
 pub async fn check_pod(client: Client, target_node_name: &String, namespace: &str) {
@@ -215,39 +240,35 @@ pub async fn check_if_seen_before(client: Client, name: &str) -> bool {
     //api.patch(name, &PatchParams::default(), &patch).await
 //}
 
-pub async fn remove_from_nb(client: Client, name: &str) -> Result<Node, Error> {
+pub async fn remove_from_nb(client: Client, name: &str, port: i32) {
     let api: Api<Node> = Api::all(client);
-    let mut node = api.get(&name).await.unwrap();
-    let mut new_labels = BTreeMap::new();
-    new_labels.insert("node.kubernetes.io/exclude-from-external-load-balancers".to_string(), "true".to_string());
-    let patch = NodePatch {
-        metadata: NodeMetadataPatch {
-            labels: new_labels,
-        },
-    };
-    let params = PatchParams::default();
-    println!("Labels updated for node: {} - Removed from NB", name);
-    api.patch(name, &params, &Patch::Merge(&patch)).await
+    let node = api.get(&name).await.unwrap();
+    let private_ip = get_private_address(&node);
+    let dbresp = get_by_node_ip_nbcfg(&private_ip.unwrap(), &port).await;
+    let response = dbresp.unwrap();
+    let mode = "drain";
+    for row in response {
+        let nodeid: i32 = row.get(0);
+        let cfgid: i32 = row.get(3);
+        let nbid: i32 = row.get(4);
+        println!("REMOVE: Node ID {} = Config ID {} = NodeBalancer ID {} = Port {}", nodeid, cfgid, nbid, port);
+        let _ = hcapi::change_node_mode(&nbid, &cfgid, &nodeid, (&mode).to_string()).await;
+    }
 
 }
 
-pub async fn add_to_nb(client: Client, name: &str) -> Result<Node, Error> {
+pub async fn add_to_nb(client: Client, name: &str, port: i32) {
     let api: Api<Node> = Api::all(client);
-    let mut node = api.get(&name).await.unwrap();
-    let label_key = "node.kubernetes.io/exclude-from-external-load-balancers";
-
-    let patch = json!([
-        {
-            "op": "remove",
-            "path": format!("/metadata/labels/{}", label_key.replace("~", "~0").replace("/", "~1"))
-        }
-    ]);
-    println!("Labels updated for node: {} - Added to NB", name);
-
-    api.patch(
-        name,
-        &PatchParams::default(),
-        &Patch::Json::<()>(from_value(patch).unwrap()),
-    )
-    .await
+    let node = api.get(&name).await.unwrap();
+    let private_ip = get_private_address(&node);
+    let dbresp = get_by_node_ip_nbcfg(&private_ip.unwrap(), &port).await;
+    let response = dbresp.unwrap();
+    let mode = "accept";
+    for row in response {
+        let nodeid: i32 = row.get(0);
+        let cfgid: i32 = row.get(3);
+        let nbid: i32 = row.get(4);
+        println!("ADD: Node ID {} = Config ID {} = NodeBalancer ID {} = Port {}", nodeid, cfgid, nbid, port);
+        let _ = hcapi::change_node_mode(&nbid, &cfgid, &nodeid, (&mode).to_string()).await;
+    }
 }
