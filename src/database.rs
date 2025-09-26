@@ -140,7 +140,7 @@ pub async fn create_maindb_client() -> Client {
 
 }
 
-pub async fn get_db_state(port: i32, podip: String, clustername: &String) -> Result<(), Box<dyn std::error::Error>>{
+pub async fn get_db_state(port: i32, podip: String, clustername: &String) -> Result<Vec<Row>, Error> {
     let mut connection = create_localdb_client().await;
     //let searchpattern = format!("%{}%", &podip);
     let state_query = connection.query(
@@ -149,8 +149,8 @@ pub async fn get_db_state(port: i32, podip: String, clustername: &String) -> Res
     ).await;
 
     match state_query {
-        Ok(success) => (),
-        Err(e) => {
+        Ok(ref success) => (),
+        Err(ref e) => {
             if e.to_string().contains("duplicate key value violates unique constraint") {
                 ();
             } else {
@@ -159,7 +159,7 @@ pub async fn get_db_state(port: i32, podip: String, clustername: &String) -> Res
         }
     }
 
-    Ok(())
+    Ok(state_query?.clone())
 
 
 }

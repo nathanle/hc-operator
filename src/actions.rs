@@ -13,6 +13,7 @@ use serde::{Serialize, Deserialize};
 //use kube::api::ObjectMeta;
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::{ObjectMeta, Time, ManagedFieldsEntry, OwnerReference};
 use k8s_openapi::api::core::v1::{ PodSpec, PodStatus };
+use tokio_postgres::Row;
 use crate::hcapi;
 use crate::database::{
     get_by_node_ip_nbcfg,
@@ -169,12 +170,6 @@ pub async fn get_hc_pod_ip(client: Client, target_node_name: &String, ns: &str, 
         })
         .collect();
     if filtered_pods.len() == 0 {
-        //println!(
-        //    "\nFound {} pods on node '{}': {:#?}",
-        //    filtered_pods.len(),
-        //    target_node_name,
-        //    filtered_pods
-        //);
         let filtered_pods_results = serde_json::to_string(&filtered_pods).unwrap();
         let my_struct: ZeroPods = serde_json::from_str(&filtered_pods_results).expect("ZeroPods Failed");
         println!("{:#?}", my_struct);
@@ -182,16 +177,9 @@ pub async fn get_hc_pod_ip(client: Client, target_node_name: &String, ns: &str, 
         
     }
     if filtered_pods.len() > 0 {
-        //println!(
-        //    "\nFound {} pods on node '{}'",
-        //    filtered_pods.len(),
-        //    target_node_name,
-        //);
         for f in filtered_pods {
             let filtered_pods_results = serde_json::to_value(f).unwrap();
-            //println!("{:#?}", filtered_pods_results);
             let my_struct: Pods = serde_json::from_value(filtered_pods_results).expect("Pod Failed");
-            //println!("{:#?}", my_struct.status.pod_ip);
             ip_vector.push(my_struct.status.pod_ip.expect("IP string conversion failed").to_string());
         }
     }
@@ -202,8 +190,6 @@ pub async fn get_hc_pod_ip(client: Client, target_node_name: &String, ns: &str, 
 
 pub async fn check_port(ip_address: String, port_number: i32, check_timeout: u64) -> bool {                                                                                                                                        
      let addr = format!("{}:{}", ip_address.to_string(), port_number);                                                                                                                              
-     println!("{}", addr);                                                                                                                                                                          
-     //let free_port = free_local_port().unwrap();                                                                                                                                                    
      is_port_reachable_with_timeout(addr, Duration::from_secs(check_timeout))                                                                                                                                                    
  }
 
@@ -226,22 +212,6 @@ pub async fn check_if_seen_before(client: Client, name: &str) -> bool {
 
 }
 
-//pub async fn mark_as_seen(client: Client, name: &str) -> Result<Node, Error> {
-    //let api: Api<Node> = Api::all(client);
-    //let mut node = api.get(&name).await.unwrap();
-    //let mut annotations = node.metadata.annotations.unwrap_or_default();
-    //annotations.insert("test.example.com/seen_by_operator".to_string(), "true".to_string());
-    //node.metadata.annotations = Some(annotations);
-    //let patch_payload: Value = json!({
-    //    "metadata": {
-    //        "annotations": node.metadata.annotations
-    //    }
-    //});
-    //let patch: Patch<&Value> = Patch::Merge(&patch_payload);
-    //println!("Annotations updated for node: {}", name);
-    //api.patch(name, &PatchParams::default(), &patch).await
-//}
-
 pub async fn remove_from_nb(client: Client, name: &str, port: i32, podip: String, clustername: &String) {
     let api: Api<Node> = Api::all(client);
     let node = api.get(&name).await.unwrap();
@@ -262,8 +232,18 @@ pub async fn remove_from_nb(client: Client, name: &str, port: i32, podip: String
 
 }
 
-pub async fn get_state(client: Client, name: &str, port: i32, podip: String, clustername: &String) {
-    get_db_state(port, podip, &clustername);
+pub async fn get_state(port: i32, podip: String, clustername: &String) -> (String, String) {
+    let result = get_db_state(port, podip, &clustername).await;
+    let mut lastmode: String = String::new();
+    let mut current: String = String::new();
+    for row in result.unwrap() {
+
+        lastmode = row.get(5);
+        current = row.get(6);
+
+    }
+
+    (lastmode, current)
 }
 
 pub async fn add_to_nb(client: Client, name: &str, port: i32, podip: String, clustername: &String) {

@@ -12,6 +12,7 @@ use kube::api::ListParams;
 use std::collections::BTreeMap;
 use crate::database::{
     get_by_node_ip_nbcfg,
+    get_db_state,
 };
 
 pub mod crd;
@@ -121,10 +122,13 @@ async fn reconcile(node: Arc<Node>, context: Arc<ContextData>) -> Result<Action,
                         result = actions::check_port(ip.clone(), port, timeout).await;
                         println!("Port check passed status: {:?}", result);
 
+                        let state = actions::get_state(port.clone(), ip.clone(), &cluster_name).await;
+                        println!("{:?}", state);
+                        //let state = actions::get_state(port.clone(), ip.clone(), &cluster_name).await;
                         if result == true {
                             let _ = actions::add_to_nb(client.clone(), &name, port.clone(), ip.clone(), &cluster_name).await;
                             println!("reachable");
-                        } else {
+                        } else if result == false && state.1 != "drain" {
                             let _ = actions::remove_from_nb(client.clone(), &name, port.clone(), ip.clone(), &cluster_name).await;
                             println!("Node {:?} removed from NodeBalancer - unreachable", &name);
                         }
