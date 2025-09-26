@@ -95,6 +95,7 @@ async fn reconcile(node: Arc<Node>, context: Arc<ContextData>) -> Result<Action,
     let healthchecks = hcapi.list(&lp).await.unwrap();
     for hclist in healthchecks.items.clone() {
         let hc = hcapi.get(&hclist.metadata.name.expect("HC lookup issue")).await.unwrap();
+        println!("{}-{}-{}", hc.spec.serv_namespace, hc.spec.timeout, hc.spec.port);
     }
 
     match determine_action(&node) {
@@ -105,21 +106,27 @@ async fn reconcile(node: Arc<Node>, context: Arc<ContextData>) -> Result<Action,
                 let timeout = hc.spec.timeout;
                 let port = hc.spec.port;
                 let seen_before = actions::check_if_seen_before(client.clone(), &name).await;
+                println!("{:?}", seen_before);
                 actions::check_pod(client.clone(), &name, &srv_namespace).await;
                 let hcpod_ip = actions::get_hc_pod_ip(client.clone(), &name, &srv_namespace, port.clone()).await;
+                println!("hcppod_ip: {:?}", hcpod_ip);
                 let mut result = false;
                 let null_ip = "0.0.0.0".to_string();
 
                 if !hcpod_ip.contains(&null_ip) {
                     for ip in hcpod_ip {
                         result = actions::check_port(ip.clone(), port, timeout).await;
+                        println!("Port check passed status: {:?}", result);
 
                         let state = actions::get_state(port.clone(), ip.clone(), &cluster_name).await;
+                        println!("{:?}", state);
                         //let state = actions::get_state(port.clone(), ip.clone(), &cluster_name).await;
                         if result == true {
                             let _ = actions::add_to_nb(client.clone(), &name, port.clone(), ip.clone(), &cluster_name).await;
+                            println!("reachable");
                         } else if result == false && state.1 != "drain" {
                             let _ = actions::remove_from_nb(client.clone(), &name, port.clone(), ip.clone(), &cluster_name).await;
+                            println!("Node {:?} removed from NodeBalancer - unreachable", &name);
                         }
                     }
                 } else {
