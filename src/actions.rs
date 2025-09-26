@@ -36,13 +36,6 @@ struct NodePatch {
 }
 
 fn get_private_address(node: &Node) -> Option<String> {
-    //if let Some(addresses) = node.status.and_then(|s| s.addresses) {
-    //    for address in addresses {
-    //        if address.type_ == "InternalIP" {
-    //            println!("Node Address: {}", address.address);
-    //        }
-    //    }
-    //}
     if let Some(addresses) = node.status.as_ref().and_then(|s| s.addresses.as_ref()) {
         for address in addresses {
             if address.type_ == "InternalIP" {
@@ -178,7 +171,12 @@ pub async fn get_hc_pod_ip(client: Client, target_node_name: &String, ns: &str, 
         for f in filtered_pods {
             let filtered_pods_results = serde_json::to_value(f).unwrap();
             let my_struct: Pods = serde_json::from_value(filtered_pods_results).expect("Pod Failed");
-            ip_vector.push(my_struct.status.pod_ip.expect("IP string conversion failed").to_string());
+            //ip_vector.push(my_struct.status.pod_ip.expect("IP string conversion failed").to_string());
+            let result = my_struct.status.pod_ip;
+            println!("--------------------------------------------------------------------{:#?}", result)
+                //Ok(val) if val == s.unwrap() => ip_vector.push(s.to_string()),
+                //Err(val) if val == e.unwrap() => ip_vector.push("0.0.0.0".to_string()),
+
         }
     }
     return ip_vector
