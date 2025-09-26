@@ -17,6 +17,7 @@ use crate::hcapi;
 use crate::database::{
     get_by_node_ip_nbcfg,
     update_state,
+    get_db_state,
 };
 
 
@@ -212,7 +213,7 @@ pub async fn check_if_seen_before(client: Client, name: &str) -> bool {
     let annotations: Option<&BTreeMap<String, String>> = node.metadata.annotations.as_ref();
     let mut result = false;
     if let Some(annotations) = annotations {
-        let annotation_key = "test.example.com/seen_by_operator";
+        let annotation_key = "";
         if let Some(annotation_value) = annotations.get(annotation_key) {
             result = true;
         } else {
@@ -241,7 +242,7 @@ pub async fn check_if_seen_before(client: Client, name: &str) -> bool {
     //api.patch(name, &PatchParams::default(), &patch).await
 //}
 
-pub async fn remove_from_nb(client: Client, name: &str, port: i32) {
+pub async fn remove_from_nb(client: Client, name: &str, port: i32, podip: String, clustername: &String) {
     let api: Api<Node> = Api::all(client);
     let node = api.get(&name).await.unwrap();
     let private_ip = get_private_address(&node);
@@ -255,13 +256,17 @@ pub async fn remove_from_nb(client: Client, name: &str, port: i32) {
         let nbid: i32 = row.get(4);
         println!("REMOVE: Node ID {} = Config ID {} = NodeBalancer ID {} = Port {}", nodeid, cfgid, nbid, port);
         let _ = hcapi::change_node_mode(&nbid, &cfgid, &nodeid, (&mode).to_string()).await;
-        let _ = update_state(nbid, cfgid, nodeid, port, (&mode).to_string(), (&hcstatus).to_string()).await;
+        let _ = update_state(nbid, cfgid, nodeid, &podip, port, (&mode).to_string(), (&hcstatus).to_string(), clustername).await;
 
     }
 
 }
 
-pub async fn add_to_nb(client: Client, name: &str, port: i32) {
+pub async fn get_state(client: Client, name: &str, port: i32, podip: String, clustername: &String) {
+    get_db_state(port, podip, &clustername);
+}
+
+pub async fn add_to_nb(client: Client, name: &str, port: i32, podip: String, clustername: &String) {
     let api: Api<Node> = Api::all(client);
     let node = api.get(&name).await.unwrap();
     let private_ip = get_private_address(&node);
@@ -275,6 +280,6 @@ pub async fn add_to_nb(client: Client, name: &str, port: i32) {
         let nbid: i32 = row.get(4);
         println!("ADD: Node ID {} = Config ID {} = NodeBalancer ID {} = Port {}", nodeid, cfgid, nbid, port);
         let _ = hcapi::change_node_mode(&nbid, &cfgid, &nodeid, (&mode).to_string()).await;
-        let _ = update_state(nbid, cfgid, nodeid, port, (&mode).to_string(), (&hcstatus).to_string()).await;
+        let _ = update_state(nbid, cfgid, nodeid, &podip, port, (&mode).to_string(), (&hcstatus).to_string(), clustername).await;
     }
 }

@@ -9,6 +9,7 @@ use tokio::time::Duration;
 use crate::crd::HealthCheck;
 use futures::future::FutureExt;
 use kube::api::ListParams;
+use std::collections::BTreeMap;
 use crate::database::{
     get_by_node_ip_nbcfg,
 };
@@ -73,11 +74,22 @@ enum HealthCheckAction {
     NoOp,
 }
 
+pub async fn get_lke_id(node: Arc<Node>) -> String {
+    //CLean this up from an error detection and handling
+    let annotations: Option<&BTreeMap<String, String>> = node.metadata.annotations.as_ref();
+    let annotation_key = "cluster.x-k8s.io/cluster-name";
+    let Some(annotation_value) = annotations.expect("").get(annotation_key) else { todo!() };
+
+    annotation_value.to_string()
+
+}
+
 async fn reconcile(node: Arc<Node>, context: Arc<ContextData>) -> Result<Action, Error> {
     //Changed namespace logic based on customer requirements. Maybe list valid namespaces as vec in CRD definitions? 
     let client: Client = context.client.clone();
     let hcapi: Api<HealthCheck> = Api::namespaced(client.clone(), "default");
     let name = node.metadata.name.clone().expect("Cannot get node name.").to_string();
+    let cluster_name = get_lke_id(node.clone()).await;
     let lp = ListParams::default();
     let healthchecks = hcapi.list(&lp).await.unwrap();
     for hclist in healthchecks.items.clone() {
@@ -103,19 +115,22 @@ async fn reconcile(node: Arc<Node>, context: Arc<ContextData>) -> Result<Action,
                 println!("hcppod_ip: {:?}", hcpod_ip);
                 let mut result = false;
                 let null_ip = "0.0.0.0".to_string();
+
                 if !hcpod_ip.contains(&null_ip) {
                     for ip in hcpod_ip {
                         result = actions::check_port(ip.clone(), port, timeout).await;
                         println!("Port check passed status: {:?}", result);
 
                         if result == true {
-                            let _ = actions::add_to_nb(client.clone(), &name, port.clone()).await;
+                            let _ = actions::add_to_nb(client.clone(), &name, port.clone(), ip.clone(), &cluster_name).await;
                             println!("reachable");
                         } else {
-                            let _ = actions::remove_from_nb(client.clone(), &name, port.clone()).await;
+                            let _ = actions::remove_from_nb(client.clone(), &name, port.clone(), ip.clone(), &cluster_name).await;
                             println!("Node {:?} removed from NodeBalancer - unreachable", &name);
                         }
                     }
+                } else {
+                    return Ok(Action::requeue(Duration::from_secs(10)))
                 }
             }
             return Ok(Action::requeue(Duration::from_secs(10)))

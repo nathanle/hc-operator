@@ -140,11 +140,35 @@ pub async fn create_maindb_client() -> Client {
 
 }
 
-pub async fn update_state(nbid: i32, nbcfgid: i32, nodeid: i32, port: i32, lastmode: String, current: String) -> Result<(), Box<dyn std::error::Error>> {
+pub async fn get_db_state(port: i32, podip: String, clustername: &String) -> Result<(), Box<dyn std::error::Error>>{
+    let mut connection = create_localdb_client().await;
+    //let searchpattern = format!("%{}%", &podip);
+    let state_query = connection.query(
+            "SELECT * FROM state WHERE podip = $1 AND cluster_name = $2 AND port = $3",
+            &[&podip, &clustername, &port],
+    ).await;
+
+    match state_query {
+        Ok(success) => (),
+        Err(e) => {
+            if e.to_string().contains("duplicate key value violates unique constraint") {
+                ();
+            } else {
+                println!("{:?}", e);
+            }
+        }
+    }
+
+    Ok(())
+
+
+}
+
+pub async fn update_state(nbid: i32, nbcfgid: i32, nodeid: i32, podip: &String, port: i32, lastmode: String, current: String, clustername: &String) -> Result<(), Box<dyn std::error::Error>> {
     let mut connection = create_localdb_client().await;
     let update = connection.execute(
-            "INSERT INTO state (nodebalancer_id, nodebalancer_config_id, node_id, port, lastmode, current) VALUES ($1, $2, $3, $4, $5, $6)",
-            &[&nbid, &nbcfgid, &nodeid, &port, &lastmode.to_string(), &current.to_string()],
+            "INSERT INTO state (nodebalancer_id, nodebalancer_config_id, node_id, podip, port, lastmode, current, cluster_name) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) ON CONFLICT (port, podip, cluster_name) DO UPDATE SET lastmode = EXCLUDED.lastmode, current = EXCLUDED.current;",
+            &[&nbid, &nbcfgid, &nodeid, &podip, &port, &lastmode.to_string(), &current.to_string(), &clustername],
     ).await;
 
     match update {
