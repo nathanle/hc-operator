@@ -106,7 +106,6 @@ pub async fn check_pod(client: Client, target_node_name: &String, namespace: &st
                 }
                 if let Some(status) = &p.status {
                     if let Some(pod_ip) = &status.pod_ip {
-                        println!("Pod IP {}", pod_ip);
                         s = pod_ip.to_string();
                     } else {
                         println!("Pod IP not yet assigned.");
@@ -172,8 +171,7 @@ pub async fn get_hc_pod_ip(client: Client, target_node_name: &String, ns: &str, 
     if filtered_pods.len() == 0 {
         let filtered_pods_results = serde_json::to_string(&filtered_pods).unwrap();
         let my_struct: ZeroPods = serde_json::from_str(&filtered_pods_results).expect("ZeroPods Failed");
-        println!("{:#?}", my_struct);
-            ip_vector.push("0.0.0.0".to_string());
+        ip_vector.push("0.0.0.0".to_string());
         
     }
     if filtered_pods.len() > 0 {
@@ -183,8 +181,6 @@ pub async fn get_hc_pod_ip(client: Client, target_node_name: &String, ns: &str, 
             ip_vector.push(my_struct.status.pod_ip.expect("IP string conversion failed").to_string());
         }
     }
-    println!("{:?}", ip_vector);
-    //return "0.0.0.0".to_string()
     return ip_vector
 }
 

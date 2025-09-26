@@ -188,8 +188,6 @@ pub async fn update_state(nbid: i32, nbcfgid: i32, nodeid: i32, podip: &String, 
 
 pub async fn update_db_nb(nodebalancers: LocalNodeBalancerListObject) -> Result<(), Box<dyn std::error::Error>> {
     let mut connection = create_localdb_client().await;
-    //println!("{:#?}", nodebalancers);
-
     let update = connection.execute(
             "INSERT INTO nodebalancer (nb_id, ipv4, region, lke_id) VALUES ($1, $2, $3, $4)",
             &[&nodebalancers.nb_id, &nodebalancers.ipv4, &nodebalancers.region, &nodebalancers.lke_id],
@@ -243,13 +241,10 @@ pub async fn get_nbcfg_ids() -> Result<Vec<Row>, Error> {
 pub async fn get_by_node_ip_nbcfg(ip: &String, port: &i32) -> Result<Vec<Row>, Error> {
     //let mut new_ip: &String = ip;
     let searchpattern = format!("%{}%", &ip);
-    println!("IP SENT TO DB {}", &searchpattern);
     let mut node_connection = create_localdb_client().await;
     let nb_table = node_connection.query(
         "select * from node INNER JOIN nodebalancer_config ON node.config_id = nodebalancer_config.id where address LIKE $1 AND port = $2;", &[&searchpattern, &port],
     ).await;
-
-    //println!("{:#?}", nb_table);
 
     Ok(nb_table?)
 
@@ -278,15 +273,12 @@ pub async fn update_db_node(node: NodeObject) -> Result<(), Box<dyn std::error::
 
 pub async fn update_db_config(nodebalancer_config: NodeBalancerConfigObject) -> Result<(), Box<dyn std::error::Error>> {
     let mut config_connection = create_localdb_client().await;
-    //println!("{:#?}", nodebalancer_config);
-
     let nb_cfg_table = config_connection.execute(
             "INSERT INTO nodebalancer_config (id, algorithm, port, up, down, nodebalancer_id) VALUES ($1, $2, $3, $4, $5, $6)",
             &[&nodebalancer_config.id, &nodebalancer_config.algorithm, &nodebalancer_config.port, &nodebalancer_config.nodes_status.up, &nodebalancer_config.nodes_status.down, &nodebalancer_config.nodebalancer_id],
     ).await;
 
     match nb_cfg_table {
-        //Ok(success) => println!("Nodebalancer config row updated"),
         Ok(success) => (),
         Err(e) => {
             if e.to_string().contains("duplicate key value violates unique constraint") {
