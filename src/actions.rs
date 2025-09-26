@@ -39,6 +39,7 @@ fn get_private_address(node: &Node) -> Option<String> {
     if let Some(addresses) = node.status.as_ref().and_then(|s| s.addresses.as_ref()) {
         for address in addresses {
             if address.type_ == "InternalIP" {
+                println!("{:?}", Some(address.address.clone()));
                 return Some(address.address.clone());
             }
         }
@@ -161,6 +162,7 @@ pub async fn get_hc_pod_ip(client: Client, target_node_name: &String, ns: &str, 
             }
         })
         .collect();
+    println!("PPPPP{:#?} - {:?}", filtered_pods.len(), &target_node_name);
     if filtered_pods.len() == 0 {
         let filtered_pods_results = serde_json::to_string(&filtered_pods).unwrap();
         let my_struct: ZeroPods = serde_json::from_str(&filtered_pods_results).expect("ZeroPods Failed");
@@ -171,9 +173,9 @@ pub async fn get_hc_pod_ip(client: Client, target_node_name: &String, ns: &str, 
         for f in filtered_pods {
             let filtered_pods_results = serde_json::to_value(f).unwrap();
             let my_struct: Pods = serde_json::from_value(filtered_pods_results).expect("Pod Failed");
-            //ip_vector.push(my_struct.status.pod_ip.expect("IP string conversion failed").to_string());
-            let result = my_struct.status.pod_ip;
-            println!("--------------------------------------------------------------------{:#?}", result)
+            ip_vector.push(my_struct.status.pod_ip.expect("IP string conversion failed").to_string());
+            //let result = my_struct.status.pod_ip;
+            //println!("--------------------------------------------------------------------{:#?}", result)
                 //Ok(val) if val == s.unwrap() => ip_vector.push(s.to_string()),
                 //Err(val) if val == e.unwrap() => ip_vector.push("0.0.0.0".to_string()),
 
@@ -212,6 +214,7 @@ pub async fn remove_from_nb(client: Client, name: &str, port: i32, podip: String
     let private_ip = get_private_address(&node);
     let dbresp = get_by_node_ip_nbcfg(&private_ip.unwrap(), &port).await;
     let response = dbresp.unwrap();
+    println!("LOOOOOOOOOK!");
     let mode = "drain";
     let hcstatus = "drain";
     for row in response {
@@ -238,6 +241,22 @@ pub async fn get_state(port: i32, podip: String, clustername: &String) -> (Strin
     }
 
     (lastmode, current)
+}
+
+pub async fn init_state(client: Client, name: &str, port: i32, podip: String, clustername: &String) {
+    let api: Api<Node> = Api::all(client);
+    let node = api.get(&name).await.unwrap();
+    let private_ip = get_private_address(&node);
+    let dbresp = get_by_node_ip_nbcfg(&private_ip.unwrap(), &port).await;
+    let response = dbresp.unwrap();
+    let mode = "none";
+    let hcstatus = "none";
+    for row in response {
+        let nodeid: i32 = row.get(0);
+        let cfgid: i32 = row.get(3);
+        let nbid: i32 = row.get(4);
+        let _ = update_state(nbid, cfgid, nodeid, &podip, port, (&mode).to_string(), (&hcstatus).to_string(), clustername).await;
+    }
 }
 
 pub async fn add_to_nb(client: Client, name: &str, port: i32, podip: String, clustername: &String) {
