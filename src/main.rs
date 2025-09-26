@@ -100,17 +100,13 @@ async fn reconcile(node: Arc<Node>, context: Arc<ContextData>) -> Result<Action,
 
     match determine_action(&node) {
         HealthCheckAction::Create => {
-            //let hc = hcapi.get("hc").await.unwrap();
-            //println!("Vector {:?}", &healthchecks.items);
             for hclist in &healthchecks.items {
                 let hc = hcapi.get(&hclist.metadata.name.clone().expect("HC lookup issue")).await.unwrap();
-                //println!("{:#?}", hc);
                 let srv_namespace = hc.spec.serv_namespace;
                 let timeout = hc.spec.timeout;
                 let port = hc.spec.port;
                 let seen_before = actions::check_if_seen_before(client.clone(), &name).await;
                 println!("{:?}", seen_before);
-                //actions::mark_as_seen(client.clone(), &name).await?;
                 actions::check_pod(client.clone(), &name, &srv_namespace).await;
                 let hcpod_ip = actions::get_hc_pod_ip(client.clone(), &name, &srv_namespace, port.clone()).await;
                 println!("hcppod_ip: {:?}", hcpod_ip);
