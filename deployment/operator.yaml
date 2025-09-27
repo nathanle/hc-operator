@@ -27,7 +27,10 @@ spec:
         - name: db-client-cert 
           mountPath: "/cert/ca.cert"
           readOnly: true
-        imagePullPolicy: IfNotPresent 
+        imagePullPolicy: Always 
+        envFrom:
+        - secretRef:
+            name: hc-operator
       volumes:
       - name: db-client-cert
         secret:
