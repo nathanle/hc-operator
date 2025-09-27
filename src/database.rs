@@ -103,7 +103,8 @@ pub struct NodeStatus {
 
 async fn create_connector() -> MakeTlsConnector {
     let mut builder = SslConnector::builder(SslMethod::tls()).expect("unable to create sslconnector builder");
-    builder.set_ca_file("/tmp/ca.cert").expect("unable to load ca.cert");
+    let cert_location = env::var("CERTLOCATION");
+    builder.set_ca_file(cert_location.unwrap()).expect("unable to load ca.cert");
     builder.set_verify(SslVerifyMode::NONE);
     let connector = MakeTlsConnector::new(builder.build());
 
