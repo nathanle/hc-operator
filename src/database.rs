@@ -245,6 +245,7 @@ pub async fn get_by_node_ip_nbcfg(ip: &String, port: &i32) -> Result<Vec<Row>, E
     let nb_table = node_connection.query(
         "select * from node INNER JOIN nodebalancer_config ON node.config_id = nodebalancer_config.id where address LIKE $1 AND port = $2;", &[&searchpattern, &port],
     ).await;
+    println!("{:#?}{:#?}{:#?}", nb_table, &searchpattern, &port);
 
     Ok(nb_table?)
 
