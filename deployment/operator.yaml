@@ -15,7 +15,7 @@ spec:
       serviceAccountName: node-health-check-operator-rs-account
       containers:
       - name: node-health-check-operator-rs
-        image: nathanles/hc-operator:latest
+        image: nathanles/hc-operator:v1
         resources:
           requests:
             memory: "10Mi"
@@ -25,7 +25,7 @@ spec:
             cpu: "100m"
         volumeMounts:
         - name: db-client-cert 
-          mountPath: "/root/ca.cert"
+          mountPath: "/root/"
           readOnly: true
         imagePullPolicy: Always 
         envFrom:
