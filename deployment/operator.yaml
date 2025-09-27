@@ -25,7 +25,7 @@ spec:
             cpu: "100m"
         volumeMounts:
         - name: db-client-cert 
-          mountPath: "/cert/ca.cert"
+          mountPath: "/root/ca.cert"
           readOnly: true
         imagePullPolicy: Always 
         envFrom:
