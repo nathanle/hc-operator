@@ -173,9 +173,12 @@ pub async fn get_hc_pod_ip(client: Client, target_node_name: &String, ns: &str, 
         for f in filtered_pods {
             let filtered_pods_results = serde_json::to_value(f).unwrap();
             let my_struct: Pods = serde_json::from_value(filtered_pods_results).expect("Pod Failed");
-            ip_vector.push(my_struct.status.pod_ip.expect("IP string conversion failed").to_string());
-            //let result = my_struct.status.pod_ip;
-            //println!("--------------------------------------------------------------------{:#?}", result)
+            //This is where the bug is when new pods start. Panic sometimes occurs
+            let result = my_struct.status.pod_ip.clone();
+            if result != None {
+                ip_vector.push(result.clone().expect("IP string conversion failed").to_string());
+            }
+            println!("--------------------------------------------------------------------{:#?}", result);
                 //Ok(val) if val == s.unwrap() => ip_vector.push(s.to_string()),
                 //Err(val) if val == e.unwrap() => ip_vector.push("0.0.0.0".to_string()),
 

@@ -125,11 +125,8 @@ async fn reconcile(node: Arc<Node>, context: Arc<ContextData>) -> Result<Action,
                         println!("{:?}-{:?}-{:?}", state.0.is_empty(), state.1.is_empty(), result);
                         if result == true && state.1 == "accept" {
                             return Ok(Action::requeue(Duration::from_secs(10)))
-                            //let _ = actions::add_to_nb(client.clone(), &name, port.clone(), ip.clone(), &cluster_name).await;
-                            //println!("reachable");
-                        //} else if result == false && state.1 != "drain" {
-                        //    let _ = actions::remove_from_nb(client.clone(), &name, port.clone(), ip.clone(), &cluster_name).await;
-                        //    println!("Node {:?} removed from NodeBalancer - unreachable", &name);
+                        } else if result == false && state.1 == "drain" {
+                            return Ok(Action::requeue(Duration::from_secs(10)))
                         } else if state.1 == "accept" && result == false {
                             let _ = actions::remove_from_nb(client.clone(), &name, port.clone(), ip.clone(), &cluster_name).await;
                             println!("Node {:?} removed from NodeBalancer - unreachable", &name);
