@@ -115,7 +115,8 @@ pub async fn create_localdb_client() -> Client {
     let connector = create_connector().await;
 
     let url = format!("postgresql://akmadmin:{}@{}/defaultdb", localdb_pw.to_string(), localdb_hostport.to_string());
-    let Ok((client, connection)) = tokio_postgres::connect(&url, connector).await else { panic!("Client failure.") };
+    //let Ok((client, connection)) = tokio_postgres::connect(&url, connector).await else { panic!("Client failure.") };
+    let Ok((client, connection)) = tokio_postgres::connect(&url, connector).await else { todo!() };
     tokio::spawn(async move {
         if let Err(e) = connection.await {
             eprintln!("connection error: {}", e);
