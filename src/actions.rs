@@ -187,6 +187,9 @@ pub async fn get_hc_pod_ip(client: Client, target_node_name: &String, ns: &str, 
 pub async fn check_port(ip_address: String, port_number: i32, check_timeout: u64) -> bool {                                                                                                                                        
      let addr = format!("{}:{}", ip_address.to_string(), port_number);                                                                                                                              
      is_port_reachable_with_timeout(addr, Duration::from_secs(check_timeout))                                                                                                                                                    
+
+     //true
+     
  }
 
 pub async fn check_if_seen_before(client: Client, name: &str) -> bool {
@@ -266,7 +269,7 @@ pub async fn add_to_nb(client: Client, name: &str, port: i32, podip: String, clu
     let dbresp = get_by_node_ip_nbcfg(&private_ip.unwrap(), &port).await;
     let response = dbresp.unwrap();
     let mode = "accept";
-    let hcstatus = "restored";
+    let hcstatus = "accept";
     for row in response {
         let nodeid: i32 = row.get(0);
         let cfgid: i32 = row.get(3);
