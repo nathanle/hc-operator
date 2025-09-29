@@ -106,10 +106,8 @@ async fn reconcile(node: Arc<Node>, context: Arc<ContextData>) -> Result<Action,
                 let timeout = hc.spec.timeout;
                 let port = hc.spec.port;
                 let seen_before = actions::check_if_seen_before(client.clone(), &name).await;
-                println!("{:?}", seen_before);
-                actions::check_pod(client.clone(), &name, &srv_namespace).await;
+                let _ = actions::check_pod(client.clone(), &name, &srv_namespace).await;
                 let hcpod_ip = actions::get_hc_pod_ip(client.clone(), &name, &srv_namespace, port.clone()).await;
-                println!("hcppod_ip: {:?}", hcpod_ip);
                 let mut result = false;
                 let null_ip = "0.0.0.0".to_string();
 
@@ -119,15 +117,15 @@ async fn reconcile(node: Arc<Node>, context: Arc<ContextData>) -> Result<Action,
                         println!("Port check passed status: {:?}", result);
 
                         let state = actions::get_state(port.clone(), ip.clone(), &cluster_name).await;
-                        println!("**********************{:?}**********************", state);
                         //let state = actions::get_state(port.clone(), ip.clone(), &cluster_name).await;
 
-                        println!("{:?}-{:?}-{:?}", state.0.is_empty(), state.1.is_empty(), result);
+                        println!("{:?}: Lastmode Empty {:?} - Current State Empty {:?} - TCP HC Result {:?}", ip.clone(), state.0.is_empty(), state.1.is_empty(), result);
                         if result == true && state.1 == "accept" {
                             return Ok(Action::requeue(Duration::from_secs(10)))
                         } else if result == false && state.1 == "drain" {
                             return Ok(Action::requeue(Duration::from_secs(10)))
                         } else if state.1 == "accept" && result == false {
+                            println!("ACCEPT AND FALSE HC RESULT");
                             let _ = actions::remove_from_nb(client.clone(), &name, port.clone(), ip.clone(), &cluster_name).await;
                             println!("Node {:?} removed from NodeBalancer - unreachable", &name);
                         } else if state.1 == "drain" && result == true {

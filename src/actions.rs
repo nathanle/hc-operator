@@ -39,7 +39,6 @@ fn get_private_address(node: &Node) -> Option<String> {
     if let Some(addresses) = node.status.as_ref().and_then(|s| s.addresses.as_ref()) {
         for address in addresses {
             if address.type_ == "InternalIP" {
-                println!("{:?}", Some(address.address.clone()));
                 return Some(address.address.clone());
             }
         }
@@ -80,17 +79,8 @@ pub async fn check_pod(client: Client, target_node_name: &String, namespace: &st
             }
         })
         .collect();
-    println!(
-        "\nFound {} pods on node {} in namespace {}",
-        filtered_pods.len(),
-        target_node_name,
-        namespace
-    );
-    //println!("{:#?}", filtered_pods);
     for p in filtered_pods {
-        println!("  - {}", p.metadata.name.as_ref().unwrap());
            if let Some(spec) = p.spec {
-            //println!("{:#?}", spec.containers);
             for container in spec.containers {
                 if let Some(ports) = container.ports {
                     for port in ports {
@@ -162,7 +152,6 @@ pub async fn get_hc_pod_ip(client: Client, target_node_name: &String, ns: &str, 
             }
         })
         .collect();
-    println!("PPPPP{:#?} - {:?}", filtered_pods.len(), &target_node_name);
     if filtered_pods.len() == 0 {
         let filtered_pods_results = serde_json::to_string(&filtered_pods).unwrap();
         let my_struct: ZeroPods = serde_json::from_str(&filtered_pods_results).expect("ZeroPods Failed");
@@ -178,7 +167,6 @@ pub async fn get_hc_pod_ip(client: Client, target_node_name: &String, ns: &str, 
             if result != None {
                 ip_vector.push(result.clone().expect("IP string conversion failed").to_string());
             }
-            println!("--------------------------------------------------------------------{:#?}", result);
                 //Ok(val) if val == s.unwrap() => ip_vector.push(s.to_string()),
                 //Err(val) if val == e.unwrap() => ip_vector.push("0.0.0.0".to_string()),
 
@@ -220,7 +208,6 @@ pub async fn remove_from_nb(client: Client, name: &str, port: i32, podip: String
     let private_ip = get_private_address(&node);
     let dbresp = get_by_node_ip_nbcfg(&private_ip.unwrap(), &port).await;
     let response = dbresp.unwrap();
-    println!("LOOOOOOOOOK!");
     let mode = "drain";
     let hcstatus = "drain";
     for row in response {

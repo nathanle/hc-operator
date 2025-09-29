@@ -15,7 +15,7 @@ spec:
       serviceAccountName: node-health-check-operator-rs-account
       containers:
       - name: node-health-check-operator-rs
-        image: nathanles/hc-operator:v13
+        image: nathanles/hc-operator:v14
         resources:
           requests:
             memory: "10Mi"

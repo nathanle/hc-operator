@@ -167,17 +167,19 @@ pub async fn get_db_state(port: i32, podip: String, clustername: &String) -> Res
 }
 
 pub async fn update_state(nbid: i32, nbcfgid: i32, nodeid: i32, podip: &String, port: i32, lastmode: String, current: String, clustername: &String) -> Result<(), Box<dyn std::error::Error>> {
+    println!("Update State");
     let mut connection = create_localdb_client().await;
     let update = connection.execute(
-            "INSERT INTO state (nodebalancer_id, nodebalancer_config_id, node_id, podip, port, lastmode, current, cluster_name) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) ON CONFLICT (port, podip, cluster_name) DO UPDATE SET lastmode = EXCLUDED.lastmode, current = EXCLUDED.current;",
+            "INSERT INTO state (nodebalancer_id, nodebalancer_config_id, node_id, podip, port, lastmode, current, cluster_name) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) ON CONFLICT (port, podip, cluster_name) DO UPDATE SET port = EXCLUDED.port, lastmode = EXCLUDED.lastmode, current = EXCLUDED.current;",
             &[&nbid, &nbcfgid, &nodeid, &podip, &port, &lastmode.to_string(), &current.to_string(), &clustername],
     ).await;
 
     match update {
-        Ok(success) => (),
+        Ok(success) => println!("{:#?}", success),
         Err(e) => {
             if e.to_string().contains("duplicate key value violates unique constraint") {
-                ();
+                //();
+                println!("{:?}", e);
             } else {
                 println!("{:?}", e);
             }
@@ -247,7 +249,17 @@ pub async fn get_by_node_ip_nbcfg(ip: &String, port: &i32) -> Result<Vec<Row>, E
     let nb_table = node_connection.query(
         "select * from node INNER JOIN nodebalancer_config ON node.config_id = nodebalancer_config.id where address LIKE $1 AND port = $2;", &[&searchpattern, &port],
     ).await;
-    println!("{:#?}{:#?}{:#?}", nb_table, &searchpattern, &port);
+
+    match nb_table {
+        Ok(ref success) => (),
+        Err(ref e) => {
+            if e.to_string().contains("duplicate key value violates unique constraint") {
+                println!("{:?}", e);
+            } else {
+                println!("{:?}", e);
+            }
+        }
+    }
 
     Ok(nb_table?)
 
@@ -286,7 +298,6 @@ pub async fn update_db_config(nodebalancer_config: NodeBalancerConfigObject) -> 
         Err(e) => {
             if e.to_string().contains("duplicate key value violates unique constraint") {
                 ();
-                //println!("Config already in DB: {} - Node: {}", &nodebalancer_config.id, &nodebalancer_config.nodebalancer_id);
             } else {
                 println!("{:?}", e);
             }
