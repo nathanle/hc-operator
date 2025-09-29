@@ -106,7 +106,6 @@ async fn reconcile(node: Arc<Node>, context: Arc<ContextData>) -> Result<Action,
                 let timeout = hc.spec.timeout;
                 let port = hc.spec.port;
                 let seen_before = actions::check_if_seen_before(client.clone(), &name).await;
-                //let _ = actions::check_pod(client.clone(), &name, &srv_namespace).await;
                 let hcpod_ip = actions::get_hc_pod_ip(client.clone(), &name, &srv_namespace, port.clone()).await;
                 let mut result = false;
                 let null_ip = "0.0.0.0".to_string();
