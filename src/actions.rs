@@ -46,60 +46,6 @@ fn get_private_address(node: &Node) -> Option<String> {
     None
 }
 
-pub async fn check_pod(client: Client, target_node_name: &String, namespace: &str) {
-    #[derive(Serialize, Deserialize, Debug)]
-    struct Pods {
-        apiVersion: String,
-        kind: String,
-        metadata: ObjectMeta,
-        spec: PodSpec,
-        status: PodStatus,
-        //Pod: MetaData,
-    }
-
-    let mut t: i32 = 0;
-    let mut s: String = "".to_string();
-    let pods: Api<Pod> = Api::namespaced(client, namespace);
-    let pod_list = pods.list(&ListParams::default()).await.unwrap();
-    let filtered_pods: Vec<Pod> = pod_list
-        .items
-        .into_iter()
-        .filter(|p| {
-            if let Some(spec) = &p.spec {
-                spec.node_name.as_deref() == Some(&target_node_name)
-            } else {
-                false
-            }
-        })
-        .filter(|p| {
-            if !p.metadata.name.as_deref().unwrap().contains("node-health-check-operator") {
-                true
-            } else {
-                false
-            }
-        })
-        .collect();
-    for p in filtered_pods {
-           if let Some(spec) = p.spec {
-            for container in spec.containers {
-                if let Some(ports) = container.ports {
-                    for port in ports {
-                        println!("  Container: {}, Port: {}", container.name, port.container_port);
-                        t = port.container_port;
-                    }
-                }
-                if let Some(status) = &p.status {
-                    if let Some(pod_ip) = &status.pod_ip {
-                        s = pod_ip.to_string();
-                    } else {
-                        println!("Pod IP not yet assigned.");
-                    }
-                }
-            }
-        }
-    }
-}
-
 pub async fn get_hc_pod_ip(client: Client, target_node_name: &String, ns: &str, hcport: i32) -> Vec<String> {
 
     #[derive(Serialize, Deserialize, Debug)]

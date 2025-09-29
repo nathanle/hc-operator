@@ -37,7 +37,6 @@ pub async fn change_node_mode(nbid: &i32, configid: &i32, nodeid: &i32, nodemode
         .json(&params)
         .send()
         .await?;
-    println!("{:#?}", config_response);
 
     Ok(())
 }

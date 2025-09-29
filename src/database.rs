@@ -167,7 +167,6 @@ pub async fn get_db_state(port: i32, podip: String, clustername: &String) -> Res
 }
 
 pub async fn update_state(nbid: i32, nbcfgid: i32, nodeid: i32, podip: &String, port: i32, lastmode: String, current: String, clustername: &String) -> Result<(), Box<dyn std::error::Error>> {
-    println!("Update State");
     let mut connection = create_localdb_client().await;
     let update = connection.execute(
             "INSERT INTO state (nodebalancer_id, nodebalancer_config_id, node_id, podip, port, lastmode, current, cluster_name) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) ON CONFLICT (port, podip, cluster_name) DO UPDATE SET port = EXCLUDED.port, lastmode = EXCLUDED.lastmode, current = EXCLUDED.current;",

@@ -47,9 +47,9 @@ async fn main() {
         .run(reconcile, on_error, context)
         .for_each(|reconciliation_result| async move {
             match reconciliation_result {
-                Ok(node_resource) => {
-                    println!("Reconciliation successful. Resource: {:?}", node_resource);
-                    //println!("Reconciliation successful.");
+                Ok(node_resourcee_resource) => {
+                    //println!("Reconciliation successful. Resource: {:?}", node_resource);
+                    println!("Reconciliation successful.");
                 }
                 Err(reconciliation_err) => {
                     eprintln!("Reconciliation error: {:?}", reconciliation_err)
@@ -106,7 +106,7 @@ async fn reconcile(node: Arc<Node>, context: Arc<ContextData>) -> Result<Action,
                 let timeout = hc.spec.timeout;
                 let port = hc.spec.port;
                 let seen_before = actions::check_if_seen_before(client.clone(), &name).await;
-                let _ = actions::check_pod(client.clone(), &name, &srv_namespace).await;
+                //let _ = actions::check_pod(client.clone(), &name, &srv_namespace).await;
                 let hcpod_ip = actions::get_hc_pod_ip(client.clone(), &name, &srv_namespace, port.clone()).await;
                 let mut result = false;
                 let null_ip = "0.0.0.0".to_string();
@@ -125,7 +125,6 @@ async fn reconcile(node: Arc<Node>, context: Arc<ContextData>) -> Result<Action,
                         } else if result == false && state.1 == "drain" {
                             return Ok(Action::requeue(Duration::from_secs(10)))
                         } else if state.1 == "accept" && result == false {
-                            println!("ACCEPT AND FALSE HC RESULT");
                             let _ = actions::remove_from_nb(client.clone(), &name, port.clone(), ip.clone(), &cluster_name).await;
                             println!("Node {:?} removed from NodeBalancer - unreachable", &name);
                         } else if state.1 == "drain" && result == true {
